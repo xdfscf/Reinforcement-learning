@@ -139,11 +139,13 @@ for i in seeds:
         # STARTING THE LOOP OVER ALL THE TIMESTEPS (1 Timestep = 1 Minute) IN ONE EPOCH
         direction=0
         episodic_reward=0
+
         temperature =current_state[0]
-        times=[]
-        temperatures=[]
-        temperatures1=[]
-        actions=[]
+        times = []
+        temperatures = []
+        temperatures1 = []
+        actions = []
+
         while timestep <= 12 * 30 * 24 * 60:
 
 
@@ -166,21 +168,45 @@ for i in seeds:
             timestep += 1
             temperature=next_state[0]
             # End this episode when `done` is True
+        POINTS = 40
+        fig, ax = plt.subplots(2, 1)
+        line_temperature, = ax[0].plot(range(POINTS), temperatures[0:40], 'r-x', label='temperature of data center')
+        line_pre_temperature, = ax[0].plot(range(POINTS), temperatures1[0:40], 'g-x', label='Preset temperature')
+        ax[0].set_xlim([0, POINTS])
+        ax[0].set_ylim([-25, 85])
+        ax[0].set_xlabel("time step")
+        ax[0].set_ylabel("Temperature")
+        ax[0].set_autoscale_on(False)
+        ax[0].legend()
 
-            if timestep % 40 == -1:
-                plt.subplot(211)
-                plt.plot(times, temperatures,'r-x', label='temperature of data center')
-                plt.plot(times, temperatures1, 'g-x', label='Preset temperature')
-                plt.xlabel("time step")
-                plt.ylabel("Temperature")
-                plt.legend()
-                plt.subplot(212)
-                plt.plot(times, actions,'g-^', label='The temperature changed by PID algorithm')
-                plt.xlabel("time step")
-                plt.ylabel("Action")
-                plt.legend()
-                plt.show()
-                '''
+        line_action, = ax[1].plot(range(POINTS), actions[0:40], 'g-^', label='The temperature changed by PID algorithm')
+        ax[1].set_xlim([0, POINTS])
+        ax[1].set_ylim([-10, 10])
+        ax[1].set_xlabel("time step")
+        ax[1].set_ylabel("Action")
+        ax[1].set_autoscale_on(False)
+        ax[1].legend()
+
+        global loop_time
+        loop_time=0
+        def show_output(ax):
+            global loop_time
+            loop_time+=1
+            if loop_time+40>=len(temperatures):
+                return
+
+            line_temperature.set_ydata(temperatures[loop_time:loop_time+40])
+            line_pre_temperature.set_ydata(temperatures1[loop_time:loop_time+40])
+            line_action.set_ydata(actions[loop_time:loop_time+40])
+            ax[0].figure.canvas.draw()
+
+        timer = fig.canvas.new_timer(interval=10)
+        timer.add_callback(show_output, ax)
+        timer.start()
+        plt.show()
+
+
+        '''
         plt.plot(x, np.sin(x), )  # 画线并添加图例legend
         plt.plot(x, np.cos(x), 'g-^', label='Cos(x)')  # 画线并添加图例legend
           # 展示图例legend
