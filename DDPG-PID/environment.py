@@ -63,11 +63,15 @@ class Environment(object):
 
         self.ai_overflow = 0
         self.overflow = 0
-
+        # RECORD ERROR IN LAST MOMENT
         self.last_error =0
+        # RECORD ERRORS FOR INTEGRATION
         self.errors=[]
+        # RECORD PROPORTION TERM
         self.PTerm=0
+        # RECORD INTEGRAL TERM
         self.ITerm=0
+        # RECORD DIFFERENTIAL TERM
         self.DTerm=0
         self.nums1 = 0
         self.nums2 = 0
@@ -93,6 +97,7 @@ class Environment(object):
             energy_noai = self.temperature_noai - self.optimal_temperature[1]
             self.temperature_noai = self.optimal_temperature[1]
             self.nums3 += 1
+            # each time the temperature without being controlled by ai, if higher than optimal boundary,change to upper limit of temperature range
         self.overflow = self.nums3 / self.nums1
         '''
         if (self.temperature_noai < self.optimal_temperature[0]):
@@ -103,7 +108,7 @@ class Environment(object):
             energy_noai = self.temperature_noai - self.optimal_temperature[1]
             self.temperature_noai = self.optimal_temperature[1]
         '''
-        # each time the temperature without being controlled by ai, if higher than optimal boundary,change to upper limit of temperature range
+
         #print("action: "+str(energy_ai))
         #print("no action: "+str(energy_noai))
         # Computing the Reward
@@ -153,12 +158,12 @@ class Environment(object):
         print("total reward : "+str(self.reward))
         '''
         #self.reward = 1e-3 * self.reward
-        # GETTING GAME OVER
+
         #self.reward =(10-energy_ai)/3
         self.reward=(10-energy_ai)/3
         self.reward = self.reward*0.01
 
-
+        # GETTING GAME OVER
         if (self.temperature_ai < self.min_temperature):
             if (self.train == 1):
 

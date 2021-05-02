@@ -19,10 +19,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random as rn
 import environment
-"""
-We use [OpenAIGym](http://gym.openai.com/docs) to create the environment.
-We will use the `upper_bound` parameter to scale our actions later.
-"""
+
 #tf.enable_eager_execution()
 os.environ['PYTHONHASHSEED'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -41,14 +38,10 @@ lower_bound = -10
 print("Max Value of Action ->  {}".format(upper_bound))
 print("Min Value of Action ->  {}".format(lower_bound))
 
-"""
-To implement better exploration by the Actor network, we use noisy perturbations,
-specifically
-an **Ornstein-Uhlenbeck process** for generating noise, as described in the paper.
-It samples noise from a correlated normal distribution.
-"""
 
 
+# The noises are generated to encourage the exploration of DDPG algorithm
+# For each time, the noise will be added to the action chosen by actor network
 class OUActionNoise:
     def __init__(self, mean, std_deviation, theta=0.15, dt=1e-2, x_initial=None):
         self.theta = theta
@@ -77,23 +70,9 @@ class OUActionNoise:
             self.x_prev = np.zeros_like(self.mean)
 
 
-"""
-The `Buffer` class implements Experience Replay.
----
-![Algorithm](https://i.imgur.com/mS6iGyJ.jpg)
----
-**Critic loss** - Mean Squared Error of `y - Q(s, a)`
-where `y` is the expected return as seen by the Target network,
-and `Q(s, a)` is action value predicted by the Critic network. `y` is a moving target
-that the critic model tries to achieve; we make this target
-stable by updating the Target model slowly.
-**Actor loss** - This is computed using the mean of the value given by the Critic network
-for the actions taken by the Actor network. We seek to maximize this quantity.
-Hence we update the Actor network so that it produces actions that get
-the maximum predicted value as seen by the Critic, for a given state.
-"""
 
 
+# The Buffer is used for memory reply, DDPG will learn from these experience sections.
 class Buffer:
     def __init__(self, buffer_capacity=100000, batch_size=64):
         # Number of "experiences" to store at max
@@ -189,14 +168,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-"""
-Here we define the Actor and Critic networks. These are basic Dense models
-with `ReLU` activation.
-Note: We need the initialization for last layer of the Actor to be between
-`-0.003` and `0.003` as this prevents us from getting `1` or `-1` output values in
-the initial stages, which would squash our gradients to zero,
-as we use the `tanh` activation.
-"""
+
 
 
 def get_actor():
@@ -208,7 +180,8 @@ def get_actor():
     out = layers.Dense(256, activation="relu")(out)
     outputs = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(out)
 
-    # Our upper bound is 2.0 for Pendulum.
+    # The action boundary for actions.
+    # Our upper bound is 10.0 for temperature control agent.
     outputs = outputs * upper_bound
     model = tf.keras.Model(inputs, outputs)
     return model
@@ -237,12 +210,9 @@ def get_critic():
     return model
 
 
-"""
-`policy()` returns an action sampled from our Actor network plus some noise for
-exploration.
-"""
 
 
+# Policy return the final action used for training process
 def policy(state, noise_object):
     sampled_actions = tf.squeeze(actor_model(state))
     noise = noise_object()
@@ -293,7 +263,7 @@ total_episodes =8000
 gamma = 0.99
 # Used to update target networks
 tau = 0.005
-
+# Memory size and training batches
 buffer = Buffer(50000, 64)
 
 """
@@ -405,14 +375,6 @@ if __name__ == '__main__':
     plt.ylabel("Avg. Epsiodic Reward")
     plt.show()
     '''
-    """
-    If training proceeds correctly, the average episodic reward will increase with time.
-    Feel free to try different learning rates, `tau` values, and architectures for the
-    Actor and Critic networks.
-    The Inverted Pendulum problem has low complexity, but DDPG work great on many other
-    problems.
-    Another great environment to try this on is `LunarLandingContinuous-v2`, but it will take
-    more episodes to obtain good results.
-    """
+
 
     # Save the weights
