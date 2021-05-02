@@ -66,7 +66,7 @@ class Environment(object):
 
     # MAKING A METHOD THAT UPDATES THE ENVIRONMENT RIGHT AFTER THE AI PLAYS AN ACTION
     
-    def update_env(self, direction, energy_ai, month, timestep):
+    def update_env(self, direction, energy_ai, month):
         
         # GETTING THE REWARD
         
@@ -186,7 +186,7 @@ class Environment(object):
         
         # SCALING THE NEXT STATE
 
-        scaled_temperature_ai = (self.temperature_ai - self.min_temperature) / (
+        scaled_temperature_ai = (self.temperature_ai - 30) / (
                 self.max_temperature - self.min_temperature)
         scaled_temperature_ai = tf.cast(scaled_temperature_ai, tf.float32)
         scaled_number_users = (self.current_number_users - self.min_number_users) / (
@@ -224,7 +224,7 @@ class Environment(object):
         # MAKING A METHOD THAT GIVES US AT ANY TIME THE CURRENT STATE, THE LAST REWARD AND WHETHER THE GAME IS OVER
 
     def observe(self):
-        scaled_temperature_ai = (self.temperature_ai - self.min_temperature) / (
+        scaled_temperature_ai = (self.temperature_ai - 30) / (
                     self.max_temperature - self.min_temperature)
         scaled_temperature_ai = tf.cast(scaled_temperature_ai, tf.float32)
         scaled_number_users = (self.current_number_users - self.min_number_users) / (

@@ -247,14 +247,15 @@ ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.one
 actor_model = get_actor()
 critic_model = get_critic()
 #load actor and critic
-actor_model.load_weights("try_a_user8.h5")
-critic_model.load_weights("try_c_user8.h5")
+model_path="./saved_model/"
+actor_model.load_weights(model_path+"actor_1_boundary_10.h5")
+critic_model.load_weights(model_path+"critic_1_boundary_10.h5")
 #build target actor and critic
 target_actor = get_actor()
 target_critic = get_critic()
 #load target actor or critic
-target_actor.load_weights("try_pa_user8.h5")
-target_critic.load_weights("try_pc_user8.h5")
+target_actor.load_weights(model_path+"target_actor_1_boundary_10.h5")
+target_critic.load_weights(model_path+"target_critic_1_boundary_10.h5")
 # Making the weights equal initially
 target_actor.set_weights(actor_model.get_weights())
 #target_critic.set_weights(critic_model.get_weights())
@@ -316,7 +317,7 @@ if __name__ == '__main__':
 
             # UPDATING THE ENVIRONMENT AND REACHING THE NEXT STATE
             next_state, reward, game_over = env.update_env(direction, energy_ai,
-                                                       (new_month + int(timestep / (30 * 24 * 60))) % 12, timestep)
+                                                       (new_month + int(timestep / (30 * 24 * 60))) % 12)
 
 
             buffer.record((current_state, action, reward, next_state))
