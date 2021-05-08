@@ -10,15 +10,16 @@ import numpy as np
 import random as rn
 from keras.models import load_model
 import environment
-import DDPG1
+import DDPG_PID
 import tensorflow as tf
-
+import threading
 import matplotlib.pyplot as plt
 # Setting seeds for reproducibility
 os.environ['PYTHONHASHSEED'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 np.random.seed(42)
 rn.seed(12345)
+
 
 # BUILDING THE ENVIRONMENT BY SIMPLY CREATING AN OBJECT OF THE ENVIRONMENT CLASS
 env = environment.Environment(optimal_temperature = (18.0, 24.0), initial_month = 0, initial_number_users = 20, initial_rate_data = 30)
@@ -192,113 +193,75 @@ def Multiple_test(shows):
                         print("Total Energy spent with no AI: {:.0f}".format(env.total_energy_noai))
                         print("ENERGY SAVED: {:.0f} %".format((env.total_energy_noai - env.total_energy_ai) / env.total_energy_noai * 100))
 # MOST OPERATIONS IN SINGLE TEST ARE SAME AS THAT IN MULTIPLE TEST
-def Single_test(shows):
-    # INITIALIZE ENVIRONMENT
-    train = False
-    env.reset(0)
-    env.train = train
-    current_state, _, _ = env.observe()
-    actions = []
-    times = []
-    temperatures = []
-    time = 0
-    ai_energy = []
-    energy = []
+temperatures = [None]*50
+actions = [None]*50
+times = []
+ai_energy = []
+energy = []
+ai_overflow = []
+overflow = []
+class Single_test_Thread (threading.Thread):
+    def __init__(self, threadID, name, counter):
+        threading.Thread.__init__(self)
+        self.threadID = threadID
+        self.name = name
+        self.counter = counter
 
-    ai_overflow = []
-    overflow = []
-    # START SINGLE TEST
-    for timestep in range(0, 12 * 30 * 24 * 60):
+    def run(self):
+        # INITIALIZE ENVIRONMENT
+        train = False
+        env.reset(0)
+        env.train = train
+        current_state, _, _ = env.observe()
+        time = 0
 
-        current_state = tf.expand_dims(tf.convert_to_tensor(current_state), 0)
-        action = tf.squeeze(actor_model(current_state)).numpy()
-        if action < 0:
-            direction = -1
-        else:
-            direction = 1
-        energy_ai = float(abs(action))
+        # START SINGLE TEST
+        for timestep in range(0, 12 * 30 * 24 * 60):
 
-        next_state, reward, game_over = env.update_env(direction, energy_ai, int(timestep / (30 * 24 * 60)) % 12)
-        current_state = next_state
+            current_state = tf.expand_dims(tf.convert_to_tensor(current_state), 0)
+            action = tf.squeeze(actor_model(current_state)).numpy()
+            if action < 0:
+                direction = -1
+            else:
+                direction = 1
+            energy_ai = float(abs(action))
 
-        actions.append(action)
-        times.append(time)
-        temperatures.append(env.temperature_ai)
-        time+=1
+            next_state, reward, game_over = env.update_env(direction, energy_ai, int(timestep / (30 * 24 * 60)) % 12)
+            current_state = next_state
 
-        ai_energy.append(env.total_energy_ai)
-        energy.append(env.total_energy_noai)
+            actions.append(action)
+            times.append(time)
+            temperatures.append(env.temperature_ai)
+            time += 1
 
-        ai_overflow.append(env.ai_overflow)
-        overflow.append(env.overflow)
+            ai_energy.append(env.total_energy_ai)
+            energy.append(env.total_energy_noai)
 
-        if timestep % 40 == -1:
-            plt.subplot(211)
-            plt.title("DDPG with action boundary=10")
-            plt.plot(times, temperatures, 'r-x', label='temperature of server')
-            plt.xlabel("time step")
-            plt.ylabel("Temperature")
-            plt.legend()
-            plt.subplot(212)
-            plt.plot(times, actions, 'g-^', label='The temperature changed by agent')
-            plt.xlabel("time step")
-            plt.ylabel("Action")
-            plt.legend()
-            plt.show()
-    if shows:
-        POINTS = 40
-        fig, ax = plt.subplots(2, 1)
-        line_temperature, = ax[0].plot(range(POINTS), temperatures[0:40], 'r-x', label='temperature of data center')
-        ax[0].set_xlim([0, POINTS])
-        ax[0].set_ylim([-25, 85])
-        ax[0].set_xlabel("time step")
-        ax[0].set_ylabel("Temperature")
-        ax[0].set_autoscale_on(False)
-        ax[0].legend()
+            ai_overflow.append(env.ai_overflow)
+            overflow.append(env.overflow)
 
-        line_action, = ax[1].plot(range(POINTS), actions[0:40], 'g-^', label='The temperature changed by PID algorithm')
-        ax[1].set_xlim([0, POINTS])
-        ax[1].set_ylim([-10, 10])
-        ax[1].set_xlabel("time step")
-        ax[1].set_ylabel("Action")
-        ax[1].set_autoscale_on(False)
-        ax[1].legend()
+            if timestep % 40 == -1:
+                plt.subplot(211)
+                plt.title("DDPG with action boundary=10")
+                plt.plot(times, temperatures, 'r-x', label='temperature of server')
+                plt.xlabel("time step")
+                plt.ylabel("Temperature")
+                plt.legend()
+                plt.subplot(212)
+                plt.plot(times, actions, 'g-^', label='The temperature changed by agent')
+                plt.xlabel("time step")
+                plt.ylabel("Action")
+                plt.legend()
+                plt.show()
 
-        global loop_time
-        loop_time = 0
 
-        def show_output(ax):
-            global loop_time
-            loop_time += 1
-            if loop_time + 40 >= len(temperatures):
-                return
+        print("Total Energy spent with an AI: {:.0f}".format(env.total_energy_ai))
+        print("Total Energy spent with no AI: {:.0f}".format(env.total_energy_noai))
+        print("ENERGY SAVED: {:.0f} %".format(
+            (env.total_energy_noai - env.total_energy_ai) / env.total_energy_noai * 100))
 
-            line_temperature.set_ydata(temperatures[loop_time:loop_time + 40])
-            line_action.set_ydata(actions[loop_time:loop_time + 40])
-            ax[0].figure.canvas.draw()
 
-        timer = fig.canvas.new_timer(interval=10)
-        timer.add_callback(show_output, ax)
-        timer.start()
-        plt.show()
 
-    plt.subplot(211)
-    plt.plot(times, ai_energy, color='r', label='ai controller', linewidth=2)
-    plt.plot(times, energy, color='g', label='traditional controller', linewidth=2)
-    plt.xlabel("time step")
-    plt.ylabel("energy consumption")
-
-    plt.legend()
-    plt.subplot(212)
-    plt.plot(times, ai_overflow, color='r', label='ai controller', linewidth=2)
-    plt.plot(times, overflow, color='g', label='traditional controller', linewidth=2)
-    plt.xlabel("time step")
-    plt.ylabel("Overflow times")
-    plt.legend()
-    plt.show()
-    print("Total Energy spent with an AI: {:.0f}".format(env.total_energy_ai))
-    print("Total Energy spent with no AI: {:.0f}".format(env.total_energy_noai))
-    print("ENERGY SAVED: {:.0f} %".format((env.total_energy_noai - env.total_energy_ai) / env.total_energy_noai * 100))
 
 # SAVE THE PATHS OF MODELS
 path_list=[]
@@ -339,9 +302,48 @@ if len(path_list)>0:
                     print("Do you want to see the action-temperature figure? y/n")
                     command = input('>> ').strip().split()
 
-                shows = False
+                timer=None
+                shows=False
                 if command[0] == 'y':
-                    shows = True
+                    shows=True
+                    POINTS = 40
+                    fig, ax = plt.subplots(2, 1)
+                    line_temperature, = ax[0].plot(range(POINTS), temperatures[0:40], 'r-x',
+                                                   label='temperature of data center')
+                    ax[0].set_xlim([0, POINTS])
+                    ax[0].set_ylim([-25, 85])
+                    ax[0].set_xlabel("time step")
+                    ax[0].set_ylabel("Temperature")
+                    ax[0].set_autoscale_on(False)
+                    ax[0].legend()
+
+                    line_action, = ax[1].plot(range(POINTS), actions[0:40], 'g-^',
+                                              label='The temperature changed by DDPG-PID algorithm')
+                    ax[1].set_xlim([0, POINTS])
+                    ax[1].set_ylim([-boundary-2, boundary+2])
+                    ax[1].set_xlabel("time step")
+                    ax[1].set_ylabel("Action")
+                    ax[1].set_autoscale_on(False)
+                    ax[1].legend()
+
+                    global loop_time
+                    loop_time = 0
+
+
+                    def show_output(ax):
+                        global loop_time
+                        loop_time += 1
+                        if loop_time + 40 >= len(temperatures):
+                            return
+
+                        line_temperature.set_ydata(temperatures[loop_time:loop_time + 40])
+                        line_action.set_ydata(actions[loop_time:loop_time + 40])
+                        ax[0].figure.canvas.draw()
+
+
+                    timer = fig.canvas.new_timer(interval=2)
+                    timer.add_callback(show_output, ax)
+
 
                 command = []
                 while len(command)!=1 or not (command[0]=='m' or command[0]=='s'):
@@ -351,11 +353,31 @@ if len(path_list)>0:
                 if command[0]=='m':
                     Multiple_test(shows)
                 else:
-                    Single_test(shows)
+                    thread1 = Single_test_Thread(1, "Thread-1", 1)
+                    thread1.start()
+                    if shows:
+                        timer.start()
+                        plt.show()
+                    thread1.join()
+
+                    plt.subplot(211)
+                    plt.plot(times, ai_energy, color='r', label='ai controller', linewidth=2)
+                    plt.plot(times, energy, color='g', label='traditional controller', linewidth=2)
+                    plt.xlabel("time step")
+                    plt.ylabel("energy consumption")
+
+                    plt.legend()
+                    plt.subplot(212)
+                    plt.plot(times, ai_overflow, color='r', label='ai controller', linewidth=2)
+                    plt.plot(times, overflow, color='g', label='traditional controller', linewidth=2)
+                    plt.xlabel("time step")
+                    plt.ylabel("Overflow times")
+                    plt.legend()
+                    plt.show()
+
 
         else:
             print("Please enter one number")
             continue
-
 
 

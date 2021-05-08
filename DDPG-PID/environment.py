@@ -47,6 +47,10 @@ class Environment(object):
         self.intrinsic_temperature = self.atmospheric_temperature + 1.25 * self.current_number_users + 1.25 * self.current_rate_data
         # initialize temperature for ai
         self.temperature_ai = self.intrinsic_temperature
+        self.temperature2 = (self.optimal_temperature[0] + self.optimal_temperature[1]) / 2.0
+        self.temperature3 = (self.optimal_temperature[0] + self.optimal_temperature[1]) / 2.0
+        self.total_energy2 = 0
+        self.total_energy3 = 0
         # temperature_noai=the median value of optimal value boundary
         self.temperature_noai = (self.optimal_temperature[0] + self.optimal_temperature[1]) / 2.0
         # initialize the count of ai energy
@@ -108,7 +112,14 @@ class Environment(object):
             energy_noai = self.temperature_noai - self.optimal_temperature[1]
             self.temperature_noai = self.optimal_temperature[1]
         '''
-
+        energy2 = 0
+        if (self.temperature2 < self.optimal_temperature[0]):
+            energy2 = self.optimal_temperature[0] - self.temperature2
+            self.temperature2 = self.optimal_temperature[0]
+            # each time the temperature without being controlled by ai, if less than optimal boundary,change to lower limit of temperature range
+        elif (self.temperature2 > self.optimal_temperature[1]):
+            energy2 = self.temperature2 - self.optimal_temperature[1]
+            self.temperature2 = self.optimal_temperature[1]
         #print("action: "+str(energy_ai))
         #print("no action: "+str(energy_noai))
         # Computing the Reward
@@ -148,6 +159,7 @@ class Environment(object):
         #print("ai "+str(self.temperature_ai))
         # Updating the new Server's Temperature when there is no AI
         self.temperature_noai += delta_intrinsic_temperature
+        self.temperature2 += delta_intrinsic_temperature
         #和当前温度有关，用户量等造成偏置
         #print("noai "+str(self.temperature_noai))
         #ln(e/(1+e^(-x+6)))
@@ -162,6 +174,7 @@ class Environment(object):
         #self.reward =(10-energy_ai)/3
         self.reward=(10-energy_ai)/3
         self.reward = self.reward*0.01
+        self.total_energy2 += energy2
 
         # GETTING GAME OVER
         if (self.temperature_ai < self.min_temperature):
